@@ -25,27 +25,29 @@ const initBrowser = async (url) => {
     return page;
 };
 
-const sendEmail = async (url) => {
-    let transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-            user: config.google_username,
-            pass: config.google_pw,
-        },
-    });
+const sendEmail = async (url, error) => {
+    if (!error) {
+        let transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: config.google_username,
+                pass: config.google_pw,
+            },
+        });
 
-    let textToSend = 'Go get that PlayStation 5!';
-    let htmlText = `<a href=\"${url}\">Link</a>`;
+        let textToSend = 'Go get that PlayStation 5!';
+        let htmlText = `<a href=\"${url}\">Link</a>`;
 
-    let info = await transporter.sendMail({
-        from: '"Bot Monitor" <joshwestbury@gmail.com>',
-        to: config.google_username,
-        subject: 'PLAYSTATION 5 IS IN STOCK',
-        text: textToSend,
-        html: htmlText,
-    });
+        let info = await transporter.sendMail({
+            from: '"Bot Monitor" <joshwestbury@gmail.com>',
+            to: config.google_username,
+            subject: 'PLAYSTATION 5 IS IN STOCK',
+            text: textToSend,
+            html: htmlText,
+        });
 
-    console.log('Message send to: %s', info.messageId);
+        console.log('Message send to: %s', info.messageId);
+    }
 };
 
 const checkStock = async (store, page, url) => {
@@ -60,7 +62,7 @@ const checkStock = async (store, page, url) => {
             const shipIt = $("button[data-test='shipItButton']").text();
 
             if (shipIt && !soldOut) {
-                await sendEmail(url);
+                await sendEmail(url, false);
             } else {
                 console.log('Target is Sold Out');
                 return false;
@@ -74,7 +76,7 @@ const checkStock = async (store, page, url) => {
             var availability = $('button[data-gtmdata]').text();
 
             if (availability === 'Add to Cart') {
-                await sendEmail(url);
+                await sendEmail(url, false);
             } else {
                 console.log('GameStop is Sold Out');
                 return false;
@@ -96,7 +98,7 @@ const checkStock = async (store, page, url) => {
                 console.log('Best Buy is Sold Out');
                 return false;
             } else if (addToCart === 'Add to Cart') {
-                await sendEmail(url);
+                await sendEmail(url, false);
             } else {
                 console.log('Best Buy is Sold Out');
                 return false;
@@ -112,11 +114,19 @@ const checkStock = async (store, page, url) => {
             ).text();
 
             if (availability.includes('In Stock.')) {
-                await sendEmail(url);
+                await sendEmail(url, false);
             } else {
                 console.log('Amazon is Sold Out');
                 return false;
             }
+        case 'antonline':
+            await page.reload();
+            let antonlineContent = await page.evaluate(
+                () => document.body.innerHTML
+            );
+            var $ = cheerio.load(antonlineContent);
+            var availability = $("button[data-invid='1409026']").text();
+            console.log('availablility', availability);
     }
 };
 
@@ -127,8 +137,8 @@ const beginCronJob = (store, page, url) => {
 };
 
 const main = async (urls) => {
-    let targetPage = await initBrowser(urls.target_url);
-    beginCronJob('target', targetPage, urls.target_url);
+    //let targetPage = await initBrowser(urls.target_url);
+    //beginCronJob('target', targetPage, urls.target_url);
 
     let amazonPage = await initBrowser(urls.amazon_url);
     beginCronJob('amazon', amazonPage, urls.amazon_url);
@@ -136,8 +146,11 @@ const main = async (urls) => {
     let bestBuyPage = await initBrowser(urls.best_buy_url);
     beginCronJob('bestbuy', bestBuyPage, urls.best_buy_url);
 
-    let gamestopPage = await initBrowser(urls.gamestop_url);
-    beginCronJob('gamestop', gamestopPage, urls.gamestop_url);
+    // let antonlinePage = await initBrowser(urls.antonline_url);
+    // beginCronJob('antonline', antonlinePage, urls.antonline_url);
+
+    //let gamestopPage = await initBrowser(urls.gamestop_url);
+    //beginCronJob('gamestop', gamestopPage, urls.gamestop_url);
 };
 
 main(urls);
